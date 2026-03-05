@@ -696,37 +696,26 @@ class Proxy(threading.Thread):
 
             # evaluate denied requests
             if self.config_deny is not None and len(self.config_deny) > 0:
-                for item in self.config_deny:
-                    if self.config_users is not None:
-                        for key in self.config_users:
-                            if re.fullmatch(item["user"], key):
-                                logger.debug("Deny matched user %s = %s" % (item["user"], key))
-                                access_user = key
-                                logger.debug("Trying to match %s as %s" % (username, access_user))
-                                if username == access_user:
-                                    logger.debug(
-                                        "User matched mapping %s = %s, evaluating deny rule %s" % (
-                                            item["user"], key, item))
-                                    logger.debug(
-                                        "Debug deny rule %s %s" % (
-                                            text_(self.request.method), text_(self.request.url.path)))
-                                    # logger.info("Method: %s %s %s" % ((re.fullmatch(item["method"],text_(self.request.method)),
-                                    #   item["method"], text_(self.request.method))))
-                                    # logger.info("Path: %s %s %s" % ((re.fullmatch(item["url"],text_(self.request.url.path)),
-                                    #   item["url"], text_(self.request.url.path))))
-                                    if (((item["method"] == "") or re.fullmatch(item["method"],
-                                                                                text_(self.request.method))) and
-                                            (item["url"] == "" or re.fullmatch(item["url"],
-                                                                               text_(self.request.url.path))) and
-                                            (item["header"] == "" or re.fullmatch(item["header"],
-                                                                                  text_(self.request.headers))) and
-                                            (item["body"] == "" or re.fullmatch(item["body"],
-                                                                                text_(self.request.body)))):
-                                        logger.info("Request denied due to matching rule %s", item)
-                                        raise ProxyAuthenticationFailed()
-                    else:
-                        logger.info("Cannot evaluate deny rules. No users found in config.")
-                        raise ProxyAuthenticationFailed()
+                for rule in self.config_deny:
+                    if re.fullmatch(rule["user"], username):
+                        logger.debug("User matched mapping %s = %s, evaluating deny rule %s" % (
+                            rule["user"], username, rule))
+                        logger.debug("Debug deny rule %s %s" % (
+                            text_(self.request.method), text_(self.request.url.path)))
+                        # logger.info("Method: %s %s %s" % ((re.fullmatch(rule["method"],text_(self.request.method)),
+                        #   rule["method"], text_(self.request.method))))
+                        # logger.info("Path: %s %s %s" % ((re.fullmatch(rule["url"],text_(self.request.url.path)),
+                        #   rule["url"], text_(self.request.url.path))))
+                        if (((rule["method"] == "") or re.fullmatch(rule["method"],
+                                                                    text_(self.request.method))) and
+                                (rule["url"] == "" or re.fullmatch(rule["url"],
+                                                                    text_(self.request.url.path))) and
+                                (rule["header"] == "" or re.fullmatch(rule["header"],
+                                                                        text_(self.request.headers))) and
+                                (rule["body"] == "" or re.fullmatch(rule["body"],
+                                                                    text_(self.request.body)))):
+                            logger.info("Request denied due to matching rule %s", rule)
+                            raise ProxyAuthenticationFailed()
 
             # CONNECT not used by GNS3?
             # if self.request.method == b'CONNECT':
@@ -742,25 +731,16 @@ class Proxy(threading.Thread):
 
             # Try to find match for user in config
             if self.config_mapping is not None and len(self.config_mapping) > 0:
-                for item in self.config_mapping:
-                    if self.config_users is not None:
-                        for key in self.config_users:
-                            if re.fullmatch(item["match"], key):
-                                logger.debug("User mapping matched %s = %s" % (item["match"], key))
-                                access_user = key
-                                logger.debug("Trying to match %s as %s" % (username, access_user))
-                                if username == access_user:
-                                    logger.debug("User matched mapping %s = %s, choosing server %s" % (
-                                        item["match"], key, item["server"]))
-                                    if self.config_servers is not None and item["server"] in self.config_servers:
-                                        backend_server = self.config_servers[item["server"]]
-                                    else:
-                                        logger.fatal("Mapped server %s not found in config." % item["server"])
-                                        raise ProxyError()
-                                    break
-                    else:
-                        logger.info("Cannot evaluate mapping rules. No users found in config.")
-                        raise ProxyAuthenticationFailed()
+                for rule in self.config_mapping:
+                    if re.fullmatch(rule["match"], username):
+                        logger.debug("User matched mapping %s = %s, choosing server %s" % (
+                            rule["match"], username, rule["server"]))
+                        if self.config_servers is not None and rule["server"] in self.config_servers:
+                            backend_server = self.config_servers[rule["server"]]
+                        else:
+                            logger.fatal("Mapped server %s not found in config." % rule["server"])
+                            raise ProxyError()
+                        break
 
             # if no server was chosen by mapping, try using default, otherwise raise exception
             if backend_server is None:
